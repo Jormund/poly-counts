@@ -2,11 +2,11 @@
 // @id             iitc-plugin-polyCounts2
 // @name           IITC : Poly Counts 2
 // @category       Info
-// @version        2.0.1.20180711.1504
+// @version        2.0.2.20180711.2143
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://cdn.rawgit.com/Jormund/poly-counts/master/poly-counts2.meta.js
 // @downloadURL    https://cdn.rawgit.com/Jormund/poly-counts/master/poly-counts2.user.js
-// @description    [2018-07-11-1504] Display a list of all localized portals by level and faction.
+// @description    [2018-07-11-2143] Display a list of all localized portals by level and faction.
 // @include        https://ingress.com/intel*
 // @include        http://ingress.com/intel*
 // @include        https://*.ingress.com/intel*
@@ -17,21 +17,17 @@
 // ==/UserScript==
 //improvements on carb.poly-counts.user.js
 
-// PLUGIN START
+//Changelog
+//0.0.1  : modified portal counts to filter in drawn polys
+//1.0.0  : Count in search result when available, drawn items otherwise (last carb version)
+//2.0.0  : activate on ingress.com (without www)
+//2.0.1  : use same algorithm as layer-count (better approximation of "curved" edges), still not an exact solution for GeodesicPolygons. Handle holes.
+//2.0.2  : distinguish placeholders from other portals
+
 function wrapper(plugin_info) {
     // ensure plugin framework is there, even if iitc is not yet loaded
     if (typeof window.plugin !== 'function') window.plugin = function () { };
 
-    // PLUGIN START
-
-    /* CHANGELOG
-    - v0.0.1  : modified portal counts to filter in drawn polys
-    - v1.0.0  : Count in search result when available, drawn items otherwise
-    - v2.0.0  : activate on ingress.com (without www)
-    - v2.0.1  : use same algorithm as layer-count (better approximation of "curved" edges), still not an exact solution for GeodesicPolygons. Handle holes.
-    */
-
-    // use own namespace for plugin
     window.plugin.polyCounts2 = {
         BAR_TOP: 20,
         BAR_HEIGHT: 180,
@@ -167,7 +163,7 @@ function wrapper(plugin_info) {
 
         self.work.PortalsEnl = []; //ENL portal count by level
         self.work.PortalsRes = []; //RES portal count by level
-        for (var level = window.MAX_PORTAL_LEVEL; level > 0; level--) {
+        for (var level = window.MAX_PORTAL_LEVEL; level >= 0; level--) {
             self.work.PortalsEnl[level] = 0;
             self.work.PortalsRes[level] = 0;
         }
@@ -252,14 +248,14 @@ function wrapper(plugin_info) {
                 //console.log("found"+found);
                 if (found) {
                     self.work.portalsUnderDraw.push(guid);
-                    var level = portal.options.level;
+                    var level = portal.options.level || 0; //placeholders have level 0
                     var team = portal.options.team;
                     switch (team) {
-                        case 1:
+                        case window.TEAM_RES:
                             self.work.resP++;
                             self.work.PortalsRes[level]++;
                             break;
-                        case 2:
+                        case window.TEAM_ENL:
                             self.work.enlP++;
                             self.work.PortalsEnl[level]++;
                             break;
@@ -273,23 +269,36 @@ function wrapper(plugin_info) {
             total = self.work.neuP + self.work.enlP + self.work.resP;
         }
         //get portals informations from IITC
-        var minlvl = getMinPortalLevel(); //TODO: since intel doesn't show anymore portal levels when zoomed out, we should change the logic
+        //var minlvl = getMinPortalLevel(); //TODO: since intel doesn't show anymore portal levels when zoomed out, we should change the logic
+        var z = map.getZoom();
+        z = getDataZoomForMapZoom(z);
+        var tileParam = getMapZoomTileParameters(z);
+        var hasPortals = tileParam.hasPortals || false;
         var counts = '';
         if (total > 0) {
             counts += '<table><tr><th></th><th class="enl">Enlightened</th><th class="res">Resistance</th></tr>';
-            for (var level = window.MAX_PORTAL_LEVEL; level > 0; level--) {
-                counts += '<tr><td class="L' + level + '">Level ' + level + '</td>';
-                if (minlvl > level)
-                    counts += '<td colspan="2">zoom in to see portals in this level</td>';
-                else
+            for (var level = window.MAX_PORTAL_LEVEL; level >= 0; level--) {
+                if (level > 0) {
+                    counts += '<tr><td class="L' + level + '">Level ' + level + '</td>';
+                }
+                else {
+                    counts += '<tr><td class="L' + level + '">Placeholders</td>';
+                }
+                if (!hasPortals && self.work.PortalsEnl[level] == 0 && self.work.PortalsRes[level] == 0 && level > 0) {
+                    counts += '<td colspan="2">zoom in to see portals level</td>';
+                }
+                //else if (level > 0 || (level = 0 && (self.work.PortalsEnl[level] != 0 || self.work.PortalsRes[level] != 0))) {
+                else {
                     counts += '<td class="enl">' + self.work.PortalsEnl[level] + '</td><td class="res">' + self.work.PortalsRes[level] + '</td>';
+                }
+
                 counts += '</tr>';
             }
 
             counts += '<tr><th>Total:</th><td class="enl">' + self.work.enlP + '</td><td class="res">' + self.work.resP + '</td></tr>';
 
             counts += '<tr><td>Neutral:</td><td colspan="2">';
-            if (minlvl > 0)
+            if (!hasPortals)
                 counts += 'zoom in to see unclaimed portals';
             else
                 counts += self.work.neuP;
@@ -298,7 +307,7 @@ function wrapper(plugin_info) {
             var svg = $('<svg width="300" height="200">').css('margin-top', 10);
 
             self.work.all = self.work.PortalsRes.map(function (val, i) { return val + self.work.PortalsEnl[i] });
-            self.work.all[0] = self.work.neuP;
+            self.work.all[0] += self.work.neuP;
 
             // bar graphs
             self.makeBar(self.work.PortalsEnl, 'Enl', COLORS[2], 0).appendTo(svg);
@@ -307,8 +316,8 @@ function wrapper(plugin_info) {
 
             // pie graph
             var g = $('<g>')
-      .attr('transform', self.format('translate(%s,%s)', self.CENTER_X, self.CENTER_Y))
-      .appendTo(svg);
+              .attr('transform', self.format('translate(%s,%s)', self.CENTER_X, self.CENTER_Y))
+              .appendTo(svg);
 
             // inner parts - factions
             self.makePie(0, self.work.resP / total, COLORS[1]).appendTo(g);
