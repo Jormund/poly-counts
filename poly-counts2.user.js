@@ -2,15 +2,17 @@
 // @id             iitc-plugin-polyCounts2
 // @name           IITC : Poly Counts 2
 // @category       Info
-// @version        2.0.2.20180711.2143
+// @version        2.0.3.20181031.1930
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
-// @updateURL      https://cdn.rawgit.com/Jormund/poly-counts/master/poly-counts2.meta.js
-// @downloadURL    https://cdn.rawgit.com/Jormund/poly-counts/master/poly-counts2.user.js
-// @description    [2018-07-11-2143] Display a list of all localized portals by level and faction.
+// @updateURL      https://raw.githubusercontent.com/Jormund/poly-counts/master/poly-counts2.meta.js
+// @downloadURL    https://raw.githubusercontent.com/Jormund/poly-counts/master/poly-counts2.user.js
+// @description    [2018-10-31-1930] Display a list of all localized portals by level and faction.
 // @include        https://ingress.com/intel*
 // @include        http://ingress.com/intel*
 // @include        https://*.ingress.com/intel*
 // @include        http://*.ingress.com/intel*
+// @include        https://intel.ingress.com/*
+// @match          https://intel.ingress.com/*
 // @match          https://*.ingress.com/intel*
 // @match          http://*.ingress.com/intel*
 // @grant          none
@@ -18,11 +20,12 @@
 //improvements on carb.poly-counts.user.js
 
 //Changelog
-//0.0.1  : modified portal counts to filter in drawn polys
-//1.0.0  : Count in search result when available, drawn items otherwise (last carb version)
-//2.0.0  : activate on ingress.com (without www)
-//2.0.1  : use same algorithm as layer-count (better approximation of "curved" edges), still not an exact solution for GeodesicPolygons. Handle holes.
-//2.0.2  : distinguish placeholders from other portals
+//2.0.3	Activate on intel.ingress.com, changed download url to github
+//2.0.2 Distinguish placeholders from other portals
+//2.0.1 Use same algorithm as layer-count (better approximation of "curved" edges), still not an exact solution for GeodesicPolygons. Handle holes.
+//2.0.0 Activate on ingress.com (without www)
+//1.0.0 Count in search result when available, drawn items otherwise (last carb version)
+//0.0.1 Modified portal counts to filter in drawn polys
 
 function wrapper(plugin_info) {
     // ensure plugin framework is there, even if iitc is not yet loaded
