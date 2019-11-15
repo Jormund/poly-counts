@@ -1,12 +1,12 @@
 // ==UserScript==
 // @id             iitc-plugin-polyCounts2
-// @name           IITC : Poly Counts 2
+// @name           IITC plugin: Poly Counts 2
 // @category       Info
-// @version        2.0.3.20181031.1930
+// @version        2.1.0.201911115.2102
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://raw.githubusercontent.com/Jormund/poly-counts/master/poly-counts2.meta.js
 // @downloadURL    https://raw.githubusercontent.com/Jormund/poly-counts/master/poly-counts2.user.js
-// @description    [2018-10-31-1930] Display a list of all localized portals by level and faction.
+// @description    [2019-11-15-2102] Display a list of all localized portals by level and faction.
 // @include        https://ingress.com/intel*
 // @include        http://ingress.com/intel*
 // @include        https://*.ingress.com/intel*
@@ -20,12 +20,15 @@
 //improvements on carb.poly-counts.user.js
 
 //Changelog
-//2.0.3	Activate on intel.ingress.com, changed download url to github
-//2.0.2 Distinguish placeholders from other portals
-//2.0.1 Use same algorithm as layer-count (better approximation of "curved" edges), still not an exact solution for GeodesicPolygons. Handle holes.
-//2.0.0 Activate on ingress.com (without www)
-//1.0.0 Count in search result when available, drawn items otherwise (last carb version)
-//0.0.1 Modified portal counts to filter in drawn polys
+/*
+    2.1.0   Fix error with IITC-CE, MultiPolygon doesn't exist in Leaflet 1.4
+    2.0.3   Activate on intel.ingress.com, changed download url to github
+    2.0.2   Distinguish placeholders from other portals
+    2.0.1   Use same algorithm as layer-count (better approximation of "curved" edges), still not an exact solution for GeodesicPolygons. Handle holes.
+    2.0.0   Activate on ingress.com (without www)
+    1.0.0   Count in search result when available, drawn items otherwise (last version by @Carbncl)
+    0.0.1   Modified portal counts to filter in drawn polys
+*/
 
 function wrapper(plugin_info) {
     // ensure plugin framework is there, even if iitc is not yet loaded
@@ -68,7 +71,7 @@ function wrapper(plugin_info) {
 
         for (var i = 0, j = length - 1; i < length; j = i++) {
             if (((latlngs[i].lat > point.lat) != (latlngs[j].lat > point.lat)) &&
-			(point.lng < latlngs[i].lng + (latlngs[j].lng - latlngs[i].lng) * (point.lat - latlngs[i].lat) / (latlngs[j].lat - latlngs[i].lat))) {
+                (point.lng < latlngs[i].lng + (latlngs[j].lng - latlngs[i].lng) * (point.lat - latlngs[i].lat) / (latlngs[j].lat - latlngs[i].lat))) {
                 c = !c;
             }
         }
@@ -89,15 +92,25 @@ function wrapper(plugin_info) {
         if (drawnItem instanceof L.GeodesicPolygon) {
             //_latlngs contains the Polygon path used to approximate the GeodesicPolygon
             //we use this because the pnpoly algorithm is not suited for GeodesicPolygon and the approximation works better
-            polygonArr = drawnItem._latlngs.map(function (item) { return [item.lng, item.lat] });
+            if (typeof drawnItem._latlngs != "undefined" && drawnItem._latlngs.length > 0) {
+                if (typeof drawnItem._latlngs[0].lng == "number") {
+                    polygonArr = drawnItem._latlngs.map(function (item) { return [item.lng, item.lat] });
+                    polygonArr = [polygonArr]; //handle simple polygon like a multipolygon of one polygon only
+                } else if (typeof drawnItem._latlngs[0][0].lng == "number") {
+                    $.each(drawnItem._latlngs, function (i, latLngs) {//each latLngs is a polygon of a multipolygon
+                        var innerPolygonArr = latLngs.map(function (item) { return [item.lng, item.lat] });
+                        polygonArr.push(innerPolygonArr);
+                    });
+                }
+            }
         }
         else {
             //console.log("Not a GeodesicPolygon");
             polygonArr = drawnItem.toGeoJSON().geometry.coordinates;
-        }
-        if (drawnItem instanceof L.Polygon && !(drawnItem instanceof L.MultiPolygon)) {
-            //console.log("Not a MultiPolygon");
-            polygonArr = [polygonArr]; //handle simple polygon like a multipolygon of one polygon only
+            if (polygonArr[0].length == 2 && typeof polygonArr[0][0] == "number") {
+                //console.log("Not a MultiPolygon");
+                polygonArr = [polygonArr]; //handle simple polygon like a multipolygon of one polygon only
+            }
         }
         //console.log("polygonArr:"+polygonArr.length);
         $.each(polygonArr, function (i, polygonCoords) {//each polygonCoords is a polygon of a multipolygon
@@ -199,10 +212,10 @@ function wrapper(plugin_info) {
 
         //if search, add it to job
         if (window.search.lastSearch &&
-        window.search.lastSearch.selectedResult &&
-        window.search.lastSearch.selectedResult.layer) {
+            window.search.lastSearch.selectedResult &&
+            window.search.lastSearch.selectedResult.layer) {
             window.search.lastSearch.selectedResult.layer.eachLayer(function (drawnItem) {
-                if (drawnItem instanceof L.MultiPolygon || drawnItem instanceof L.Polygon) {
+                if (drawnItem instanceof L.Polygon || (typeof L.MultiPolygon == "function" && drawnItem instanceof L.MultiPolygon)) {
                     var searchPolygons = window.plugin.polyCounts2.multiPolygonToSearchPolygons(drawnItem);
                     $.each(searchPolygons, function (index, searchItem) {
                         self.work.searchItems.push(searchItem);
@@ -272,7 +285,6 @@ function wrapper(plugin_info) {
             total = self.work.neuP + self.work.enlP + self.work.resP;
         }
         //get portals informations from IITC
-        //var minlvl = getMinPortalLevel(); //TODO: since intel doesn't show anymore portal levels when zoomed out, we should change the logic
         var z = map.getZoom();
         z = getDataZoomForMapZoom(z);
         var tileParam = getMapZoomTileParameters(z);
@@ -319,8 +331,8 @@ function wrapper(plugin_info) {
 
             // pie graph
             var g = $('<g>')
-              .attr('transform', self.format('translate(%s,%s)', self.CENTER_X, self.CENTER_Y))
-              .appendTo(svg);
+                .attr('transform', self.format('translate(%s,%s)', self.CENTER_X, self.CENTER_Y))
+                .appendTo(svg);
 
             // inner parts - factions
             self.makePie(0, self.work.resP / total, COLORS[1]).appendTo(g);
@@ -353,15 +365,15 @@ function wrapper(plugin_info) {
 
             // black line from center to top
             $('<line>')
-              .attr({
-                  x1: self.work.resP < self.work.enlP ? 0.5 : -0.5,
-                  y1: 0,
-                  x2: self.work.resP < self.work.enlP ? 0.5 : -0.5,
-                  y2: -self.RADIUS_OUTER,
-                  stroke: '#000',
-                  'stroke-width': 1
-              })
-              .appendTo(g);
+                .attr({
+                    x1: self.work.resP < self.work.enlP ? 0.5 : -0.5,
+                    y1: 0,
+                    x2: self.work.resP < self.work.enlP ? 0.5 : -0.5,
+                    y2: -self.RADIUS_OUTER,
+                    stroke: '#000',
+                    'stroke-width': 1
+                })
+                .appendTo(g);
 
             // if there are no neutral portals, draw a black line between res and enl
             if (self.work.neuP == 0) {
@@ -369,15 +381,15 @@ function wrapper(plugin_info) {
                 var y = Math.cos((0.5 - self.work.resP / total) * 2 * Math.PI) * self.RADIUS_OUTER;
 
                 $('<line>')
-                .attr({
-                    x1: self.work.resP < self.work.enlP ? 0.5 : -0.5,
-                    y1: 0,
-                    x2: x,
-                    y2: y,
-                    stroke: '#000',
-                    'stroke-width': 1
-                })
-                .appendTo(g);
+                    .attr({
+                        x1: self.work.resP < self.work.enlP ? 0.5 : -0.5,
+                        y1: 0,
+                        x2: x,
+                        y2: y,
+                        stroke: '#000',
+                        'stroke-width': 1
+                    })
+                    .appendTo(g);
             }
 
             counts += $('<div>').append(svg).html();
@@ -394,7 +406,12 @@ function wrapper(plugin_info) {
         //TODO: intel doesn't filter density anymore, it's based on link length
         // I've only seen the backend reduce the portals returned for L4+ or further out zoom levels - but this could change
         // UPDATE: now seen for L2+ in dense areas (map zoom level 14 or lower)
-        if (getMinPortalLevel() >= 2) {
+        var minPortalLevel = 0;
+        if (typeof getMinPortalLevel == 'function')//original IITC 0.26.0.20170108.21732
+            minPortalLevel = getMinPortalLevel();
+        else if (typeof getCurrentZoomTileParameters == 'function')
+            minPortalLevel = getCurrentZoomTileParameters();//IITC-CE 0.29.1.20190315.122355
+        if (minPortalLevel >= 2) {
             counts += '<p class="help" title="To reduce data usage and speed up map display, the backend servers only return some portals in dense areas."><b>Warning</b>: Poly counts can be inaccurate when zoomed out</p>';
         }
 
@@ -403,9 +420,9 @@ function wrapper(plugin_info) {
 
         if (window.useAndroidPanes()) {
             $('<div id="polyCounts2" class="mobile">'
-    + '<div class="ui-dialog-titlebar"><span class="ui-dialog-title ui-dialog-title-active">' + title + '</span></div>'
-    + counts
-    + '</div>').appendTo(document.body);
+                + '<div class="ui-dialog-titlebar"><span class="ui-dialog-title ui-dialog-title-active">' + title + '</span></div>'
+                + counts
+                + '</div>').appendTo(document.body);
         } else {
             dialog({
                 html: '<div id="polyCounts2">' + counts + '</div>',
@@ -427,27 +444,27 @@ function wrapper(plugin_info) {
                     continue;
                 var height = self.BAR_HEIGHT * portals[i] / sum;
                 $('<rect>')
-        .attr({
-            x: 0,
-            y: top,
-            width: self.BAR_WIDTH,
-            height: height,
-            fill: COLORS_LVL[i]
-        })
-        .appendTo(g);
+                    .attr({
+                        x: 0,
+                        y: top,
+                        width: self.BAR_WIDTH,
+                        height: height,
+                        fill: COLORS_LVL[i]
+                    })
+                    .appendTo(g);
                 top += height;
             }
         }
 
         $('<text>')
-    .html(text)
-    .attr({
-        x: self.BAR_WIDTH * 0.5,
-        y: self.BAR_TOP * 0.75,
-        fill: color,
-        'text-anchor': 'middle'
-    })
-    .appendTo(g);
+            .html(text)
+            .attr({
+                x: self.BAR_WIDTH * 0.5,
+                y: self.BAR_TOP * 0.75,
+                fill: color,
+                'text-anchor': 'middle'
+            })
+            .appendTo(g);
 
         return g;
     };
@@ -478,19 +495,19 @@ function wrapper(plugin_info) {
             p2x -= 1E-5;
 
         var text = $('<text>')
-    .attr({
-        'text-anchor': 'middle',
-        'dominant-baseline': 'central',
-        x: lx,
-        y: ly
-    })
-    .html(label);
+            .attr({
+                'text-anchor': 'middle',
+                'dominant-baseline': 'central',
+                x: lx,
+                y: ly
+            })
+            .html(label);
 
         var path = $('<path>')
-    .attr({
-        fill: color,
-        d: self.format('M %s,%s A %s,%s 0 %s 1 %s,%s L 0,0 z', p1x, p1y, self.RADIUS_INNER, self.RADIUS_INNER, large_arc, p2x, p2y)
-    });
+            .attr({
+                fill: color,
+                d: self.format('M %s,%s A %s,%s 0 %s 1 %s,%s L 0,0 z', p1x, p1y, self.RADIUS_INNER, self.RADIUS_INNER, large_arc, p2x, p2y)
+            });
 
         return path.add(text); // concat path and text
     };
@@ -518,14 +535,14 @@ function wrapper(plugin_info) {
         }
 
         return $('<path>')
-    .attr({
-        fill: color,
-        d: self.format('M %s,%s ', p1x, p1y)
-       + self.format('A %s,%s 0 %s 1 %s,%s ', self.RADIUS_OUTER, self.RADIUS_OUTER, large_arc, p2x, p2y)
-       + self.format('L %s,%s ', p3x, p3y)
-       + self.format('A %s,%s 0 %s 0 %s,%s ', self.RADIUS_INNER, self.RADIUS_INNER, large_arc, p4x, p4y)
-       + 'Z'
-    });
+            .attr({
+                fill: color,
+                d: self.format('M %s,%s ', p1x, p1y)
+                    + self.format('A %s,%s 0 %s 1 %s,%s ', self.RADIUS_OUTER, self.RADIUS_OUTER, large_arc, p2x, p2y)
+                    + self.format('L %s,%s ', p3x, p3y)
+                    + self.format('A %s,%s 0 %s 0 %s,%s ', self.RADIUS_INNER, self.RADIUS_INNER, large_arc, p4x, p4y)
+                    + 'Z'
+            });
     };
 
     window.plugin.polyCounts2.format = function (str) {
@@ -553,25 +570,25 @@ function wrapper(plugin_info) {
         }
 
         $('head').append('<style>' +
-    '#polyCounts2.mobile {background: transparent; border: 0 none !important; height: 100% !important; width: 100% !important; left: 0 !important; top: 0 !important; position: absolute; overflow: auto; z-index: 9000 !important; }' +
-    '#polyCounts2 table {margin-top:5px; border-collapse: collapse; empty-cells: show; width:100%; clear: both;}' +
-    '#polyCounts2 table td, #polyCounts2 table th {border-bottom: 1px solid #0b314e; padding:3px; color:white; background-color:#1b415e}' +
-    '#polyCounts2 table tr.res th {  background-color: #005684; }' +
-    '#polyCounts2 table tr.enl th {  background-color: #017f01; }' +
-    '#polyCounts2 table th { text-align: center;}' +
-    '#polyCounts2 table td { text-align: center;}' +
-    '#polyCounts2 table td.L0 { background-color: #000000 !important;}' +
-    '#polyCounts2 table td.L1 { background-color: #FECE5A !important;}' +
-    '#polyCounts2 table td.L2 { background-color: #FFA630 !important;}' +
-    '#polyCounts2 table td.L3 { background-color: #FF7315 !important;}' +
-    '#polyCounts2 table td.L4 { background-color: #E40000 !important;}' +
-    '#polyCounts2 table td.L5 { background-color: #FD2992 !important;}' +
-    '#polyCounts2 table td.L6 { background-color: #EB26CD !important;}' +
-    '#polyCounts2 table td.L7 { background-color: #C124E0 !important;}' +
-    '#polyCounts2 table td.L8 { background-color: #9627F4 !important;}' +
-    '#polyCounts2 table td:nth-child(1) { text-align: left;}' +
-    '#polyCounts2 table th:nth-child(1) { text-align: left;}' +
-    '</style>');
+            '#polyCounts2.mobile {background: transparent; border: 0 none !important; height: 100% !important; width: 100% !important; left: 0 !important; top: 0 !important; position: absolute; overflow: auto; z-index: 9000 !important; }' +
+            '#polyCounts2 table {margin-top:5px; border-collapse: collapse; empty-cells: show; width:100%; clear: both;}' +
+            '#polyCounts2 table td, #polyCounts2 table th {border-bottom: 1px solid #0b314e; padding:3px; color:white; background-color:#1b415e}' +
+            '#polyCounts2 table tr.res th {  background-color: #005684; }' +
+            '#polyCounts2 table tr.enl th {  background-color: #017f01; }' +
+            '#polyCounts2 table th { text-align: center;}' +
+            '#polyCounts2 table td { text-align: center;}' +
+            '#polyCounts2 table td.L0 { background-color: #000000 !important;}' +
+            '#polyCounts2 table td.L1 { background-color: #FECE5A !important;}' +
+            '#polyCounts2 table td.L2 { background-color: #FFA630 !important;}' +
+            '#polyCounts2 table td.L3 { background-color: #FF7315 !important;}' +
+            '#polyCounts2 table td.L4 { background-color: #E40000 !important;}' +
+            '#polyCounts2 table td.L5 { background-color: #FD2992 !important;}' +
+            '#polyCounts2 table td.L6 { background-color: #EB26CD !important;}' +
+            '#polyCounts2 table td.L7 { background-color: #C124E0 !important;}' +
+            '#polyCounts2 table td.L8 { background-color: #9627F4 !important;}' +
+            '#polyCounts2 table td:nth-child(1) { text-align: left;}' +
+            '#polyCounts2 table th:nth-child(1) { text-align: left;}' +
+            '</style>');
     };
 
     // PLUGIN END //////////////////////////////////////////////////////////
