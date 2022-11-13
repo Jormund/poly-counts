@@ -2,11 +2,11 @@
 // @id             iitc-plugin-polyCounts2
 // @name           IITC plugin: Poly Counts 2
 // @category       Info
-// @version        2.2.0.20221113.2359
+// @version        2.2.1.20221114.0010
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://raw.githubusercontent.com/Jormund/poly-counts/master/poly-counts2.meta.js
 // @downloadURL    https://raw.githubusercontent.com/Jormund/poly-counts/master/poly-counts2.user.js
-// @description    [2022-11-13-2359] Counts portals by level and faction inside polygons or search result.
+// @description    [2022-11-14-0010] Counts portals by level and faction inside polygons or search result.
 // @match          https://intel.ingress.com/*
 // @match          https://intel-x.ingress.com/*
 // @match          https://*.ingress.com/intel*
@@ -15,6 +15,7 @@
 //improvements on carb.poly-counts.user.js
 
 //Changelog
+//2.2.1 Removed some logs
 //2.2.0 Handle Machina faction
 //2.1.1 Activate on intel - x.ingress.com
 //2.1.0 Fix error with IITC-CE, MultiPolygon doesn't exist in Leaflet 1.4
@@ -203,7 +204,7 @@ function wrapper(plugin_info) {
                 }
                 else {
                     //should not happen
-                    console.log('Bookmark Under Draw : unknown drawn item type');
+                    console.log('Poly counts 2 : unknown drawn item type');
                 }
             });
         }
@@ -228,12 +229,12 @@ function wrapper(plugin_info) {
             total = -1;
         }
         else {
-            console.log('Bookmark Under Draw :' + self.work.searchItems.length + ' shapes found');
+            console.log('Poly counts 2 :' + self.work.searchItems.length + ' shapes found');
 
             //var work = self.work;
             var input = window.portals;
 
-            console.log("portals:" + input.length);
+            //console.log("portals:" + input.length);
             $.each(input, function (guid, portal) {
                 var point = portal.getLatLng();
                 var found = false;
@@ -242,19 +243,19 @@ function wrapper(plugin_info) {
                         case 'circle':
                             if (self.pointIsInCircle(point, searchItem)) {
                                 found = true;
-                                console.log("in circle:" + point.lat + "," + point.lng);
+                                //console.log("in circle:" + point.lat + "," + point.lng);
                                 return false; //breaks the $.each
                             }
                             break;
                         case 'polygon':
                             if (self.pointIsInPolygon(point, searchItem)) {
                                 found = true;
-                                console.log("in polygon:" + point.lat + "," + point.lng);
+                                //console.log("in polygon:" + point.lat + "," + point.lng);
                                 return false; //breaks the $.each
                             }
                             break;
                         default:
-                            console.log('Bookmark Under Draw ERROR : invalid draw type (' + searchItem.type + ')');
+                            console.log('Poly counts 2 ERROR : invalid draw type (' + searchItem.type + ')');
                             return true; //continue the $.each
                             break;
                     };
