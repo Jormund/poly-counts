@@ -2,11 +2,11 @@
 // @id             iitc-plugin-polyCounts2
 // @name           IITC plugin: Poly Counts 2
 // @category       Info
-// @version        2.2.3.20221130.2300
+// @version        2.2.4.20221130.2310
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://raw.githubusercontent.com/Jormund/poly-counts/master/poly-counts2.meta.js
 // @downloadURL    https://raw.githubusercontent.com/Jormund/poly-counts/master/poly-counts2.user.js
-// @description    [2022-11-30-2300] Counts portals by level and faction inside polygons or search result.
+// @description    [2022-11-30-2310] Counts portals by level and faction inside polygons or search result.
 // @match          https://intel.ingress.com/*
 // @match          https://intel-x.ingress.com/*
 // @match          https://*.ingress.com/intel*
@@ -15,6 +15,7 @@
 //improvements on carb.poly-counts.user.js
 
 //Changelog
+//2.2.4 Fix missing total for Machina and total in title
 //2.2.3 Fix name was changed from TEAM_MACHINA to TEAM_MAC
 //2.2.2 Fix backward compatibility with IITC without TEAM_MACHINA
 //2.2.1 Removed some logs
@@ -304,8 +305,11 @@ function wrapper(plugin_info) {
         var counts = '';
         if (total > 0) {
             counts += '<table><tr><th></th><th class="enl">Enlightened</th><th class="res">Resistance</th>';
-            if (window.plugin.polyCounts2.machina_exists)
+            var numcol = 2;
+            if (window.plugin.polyCounts2.machina_exists) {
                 counts += '<th class="mac">Machina</th>';
+                numcol = 3;
+            }
             counts += '</tr>';
             for (var level = window.MAX_PORTAL_LEVEL; level >= 0; level--) {
                 if (level > 0) {
@@ -316,7 +320,7 @@ function wrapper(plugin_info) {
                 }
                 if (!hasPortals && level > 0
                     && self.work.PortalsEnl[level] == 0 && self.work.PortalsRes[level] == 0 && self.work.PortalsMac[level] == 0) {
-                    counts += '<td colspan="' + window.plugin.polyCounts2.machina_exists ? 3 : 2 + '">zoom in to see portals level</td>';
+                    counts += '<td colspan="' + numcol + '">zoom in to see portals level</td>';
                 }
                 //else if (we have some portals) {
                 else {
@@ -331,10 +335,10 @@ function wrapper(plugin_info) {
 
             counts += '<tr><th>Total:</th><td class="enl">' + self.work.enlP + '</td><td class="res">' + self.work.resP + '</td>';
             if (window.plugin.polyCounts2.machina_exists)
-                '<td class="mac">' + self.work.macP + '</td>'
+                counts += '<td class="mac">' + self.work.macP + '</td>';
             counts += '</tr>';
 
-            counts += '<tr><td>Neutral:</td><td colspan="2">';
+            counts += '<tr><td>Neutral:</td><td colspan="' + numcol + '">';
             if (!hasPortals)
                 counts += 'zoom in to see unclaimed portals';
             else
@@ -454,7 +458,7 @@ function wrapper(plugin_info) {
             counts += '<p class="help" title="To reduce data usage and speed up map display, the backend servers only return some portals in dense areas."><b>Warning</b>: Poly counts can be inaccurate when zoomed out</p>';
         }
 
-        var total = self.work.enlP + self.work.resP + self.work.neuP;
+        //var total = self.work.enlP + self.work.resP + self.work.neuP + self.work.macP;
         var title = total + ' ' + (total == 1 ? 'portal' : 'portals');
 
         if (window.useAndroidPanes()) {
