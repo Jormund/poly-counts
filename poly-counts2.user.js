@@ -2,11 +2,11 @@
 // @id             iitc-plugin-polyCounts2
 // @name           IITC plugin: Poly Counts 2
 // @category       Info
-// @version        2.2.1.20221114.0010
+// @version        2.2.2.20221130.2200
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://raw.githubusercontent.com/Jormund/poly-counts/master/poly-counts2.meta.js
 // @downloadURL    https://raw.githubusercontent.com/Jormund/poly-counts/master/poly-counts2.user.js
-// @description    [2022-11-14-0010] Counts portals by level and faction inside polygons or search result.
+// @description    [2022-11-30-2200] Counts portals by level and faction inside polygons or search result.
 // @match          https://intel.ingress.com/*
 // @match          https://intel-x.ingress.com/*
 // @match          https://*.ingress.com/intel*
@@ -15,6 +15,7 @@
 //improvements on carb.poly-counts.user.js
 
 //Changelog
+//2.2.2 Fix backward compatibility with IITC without TEAM_MACHINA
 //2.2.1 Removed some logs
 //2.2.0 Handle Machina faction
 //2.1.1 Activate on intel - x.ingress.com
@@ -301,7 +302,10 @@ function wrapper(plugin_info) {
         var hasPortals = tileParam.hasPortals || false;
         var counts = '';
         if (total > 0) {
-            counts += '<table><tr><th></th><th class="enl">Enlightened</th><th class="res">Resistance</th><th class="mac">Machina</th></tr>';
+            counts += '<table><tr><th></th><th class="enl">Enlightened</th><th class="res">Resistance</th>';
+            if (window.plugin.polyCounts2.machina_exists)
+                counts += '<th class="mac">Machina</th>';
+            counts += '</tr>';
             for (var level = window.MAX_PORTAL_LEVEL; level >= 0; level--) {
                 if (level > 0) {
                     counts += '<tr><td class="L' + level + '">Level ' + level + '</td>';
