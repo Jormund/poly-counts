@@ -2,11 +2,11 @@
 // @id             iitc-plugin-polyCounts2
 // @name           IITC plugin: Poly Counts 2
 // @category       Info
-// @version        2.2.2.20221130.2200
+// @version        2.2.3.20221130.2300
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://raw.githubusercontent.com/Jormund/poly-counts/master/poly-counts2.meta.js
 // @downloadURL    https://raw.githubusercontent.com/Jormund/poly-counts/master/poly-counts2.user.js
-// @description    [2022-11-30-2200] Counts portals by level and faction inside polygons or search result.
+// @description    [2022-11-30-2300] Counts portals by level and faction inside polygons or search result.
 // @match          https://intel.ingress.com/*
 // @match          https://intel-x.ingress.com/*
 // @match          https://*.ingress.com/intel*
@@ -15,6 +15,7 @@
 //improvements on carb.poly-counts.user.js
 
 //Changelog
+//2.2.3 Fix name was changed from TEAM_MACHINA to TEAM_MAC
 //2.2.2 Fix backward compatibility with IITC without TEAM_MACHINA
 //2.2.1 Removed some logs
 //2.2.0 Handle Machina faction
@@ -275,12 +276,12 @@ function wrapper(plugin_info) {
                             self.work.enlP++;
                             self.work.PortalsEnl[level]++;
                             break;
-                        //case window.TEAM_MACHINA:
+                        //case window.TEAM_MAC:
                         //    self.work.macP++;
                         //    self.work.PortalsMac[level]++;
                         //    break;
                         default:
-                            if (window.plugin.polyCounts2.machina_exists && team == window.TEAM_MACHINA) {
+                            if (window.plugin.polyCounts2.machina_exists && team == window.TEAM_MAC) {
                                 self.work.macP++;
                                 self.work.PortalsMac[level]++;
                                 break;
@@ -350,7 +351,7 @@ function wrapper(plugin_info) {
             self.makeBar(self.work.all, 'All', '#FFFFFF', 1 * (self.BAR_WIDTH + self.BAR_PADDING)).appendTo(svg);
             self.makeBar(self.work.PortalsRes, 'Res', COLORS[window.TEAM_RES], 2 * (self.BAR_WIDTH + self.BAR_PADDING)).appendTo(svg);
             if (window.plugin.polyCounts2.machina_exists)
-                self.makeBar(self.work.PortalsMac, 'Mac', COLORS[window.TEAM_MACHINA], 3 * (self.BAR_WIDTH + self.BAR_PADDING)).appendTo(svg);
+                self.makeBar(self.work.PortalsMac, 'Mac', COLORS[window.TEAM_MAC], 3 * (self.BAR_WIDTH + self.BAR_PADDING)).appendTo(svg);
 
             // pie graph
             var g = $('<g>')
@@ -362,7 +363,7 @@ function wrapper(plugin_info) {
             self.makePie(self.work.resP / total, (self.work.neuP + self.work.resP) / total, COLORS[0]).appendTo(g);
             if (window.plugin.polyCounts2.machina_exists) {
                 self.makePie((self.work.neuP + self.work.resP) / total, (self.work.neuP + self.work.resP + self.work.enlP) / total, COLORS[window.TEAM_ENL]).appendTo(g);
-                self.makePie((self.work.neuP + self.work.resP + self.work.enlP) / total, 1, COLORS[window.TEAM_MACHINA]).appendTo(g);
+                self.makePie((self.work.neuP + self.work.resP + self.work.enlP) / total, 1, COLORS[window.TEAM_MAC]).appendTo(g);
             }
             else {
                 self.makePie((self.work.neuP + self.work.resP) / total, 1, COLORS[window.TEAM_ENL]).appendTo(g);
@@ -630,7 +631,7 @@ function wrapper(plugin_info) {
             '</style>');
 
         //backward compatibility for intel.ingress.com
-        if (typeof window.TEAM_MACHINA == "undefined") {
+        if (typeof window.TEAM_MAC == "undefined") {
             window.plugin.polyCounts2.machina_exists = false;
         }
         else {
