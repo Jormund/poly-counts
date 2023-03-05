@@ -1,7 +1,8 @@
+// ==UserScript==
 // @id             iitc-plugin-polyCounts2
 // @name           IITC plugin: Poly Counts 2
 // @category       Info
-// @version        2.2.4.20221130.2310
+// @version        2.2.5.20221130.2310
 // @namespace      https://github.com/jonatkins/ingress-intel-total-conversion
 // @updateURL      https://raw.githubusercontent.com/Jormund/poly-counts/master/poly-counts2.meta.js
 // @downloadURL    https://raw.githubusercontent.com/Jormund/poly-counts/master/poly-counts2.user.js
